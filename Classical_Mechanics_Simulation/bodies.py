@@ -1,9 +1,81 @@
 import numpy as np
-
+import math
 
 class particle:
-    def __int__(self):
-        self.position = np.array([])
+    # basic shapes are limited to polygons
+    def __init__(self):
+        self.com = np.array([])
         self.velocity = np.array([])
         self.acceleration = np.array([])
-        self.mass = np.array([])
+
+        self.mass = None
+        self.forces = np.empty((0, 2))
+
+        # edges are arrays of points that connect with each other, where [0,0] is the center point
+        self.edges = np.array([])
+        self.area = None
+
+    def draw_custom_shape(self, points):
+        """
+        Manually enter points and the function will adjust coordinates such that (0,0) is the center of mass
+        :param points: n x 2 numpy array
+        :return: n x 2 numpy array of adjusted set of points which draws a polygon
+        """
+        # auto adjust so [0,0] is center of mass
+        # https://en.wikipedia.org/wiki/Centroid: find area first using shoelace formula
+        tot = 0
+        iteration = len(points) - 1
+        for i in range(iteration):
+            tot += (points[i, 0] * points[i + 1, 1]) - (points[i + 1, 0] * points[i, 1])
+        A = tot / 2
+        self.area = abs(A)
+        # find centroid
+        tot = 0
+        for i in range(iteration):
+            tot += (points[i, 0] + points[i + 1, 0]) * (
+                        points[i, 0] * points[i + 1, 1] - points[i + 1, 0] * points[i, 1])
+        cx = tot / (6 * A)
+
+        tot = 0
+        for i in range(iteration):
+            tot += (points[i, 1] + points[i + 1, 1]) * (
+                        points[i, 0] * points[i + 1, 1] - points[i + 1, 0] * points[i, 1])
+        cy = tot / (6 * A)
+        self.edges = np.transpose(np.append([points[:, 1] - cy], [points[:, 0] - cx], axis=0))
+        pass
+
+    def draw_equilateral(self, vertices, radius):
+        """
+        :param vertices: number of vertices
+        :param radius: radius
+        :return: n x 2 numpy array of points which draws a polygon
+        """
+        # https://stackoverflow.com/questions/3436453/calculate-coordinates-of-a-regular-polygons-vertices
+        points = np.empty((0, 2))
+        for i in range(vertices):
+            x = radius * math.cos(2 * math.pi * i / vertices)
+            y = radius * math.sin(2 * math.pi * i / vertices)
+            points = np.append(points, [[x, y]], axis=0)
+        self.edges = points
+
+class rope:
+    pass
+
+
+class spring:
+    pass
+
+def check_collision(objects):
+    # Using seperating axis theorem https://research.ncl.ac.uk/game/mastersdegree/gametechnologies/previousinformation/physics4collisiondetection/2017%20Tutorial%204%20-%20Collision%20Detection.pdf
+    # on every axis of all shapes check if they have collisions, collision being if shape A max > shape B min AND shape A min < shape B max
+
+    # using vector dot product/projection, vector a projected into vector b = a * unit vector of b
+    # create all projection vectors
+    p_vectors = np.empty((0, 2))
+    for obj in objects:
+        p_vector = np.divide([obj.edges[-1, 0] - obj.edges[0, 0], obj.edges[-1, 1] - obj.edges[0, 1]], ((obj.edges[-1, 0] - obj.edges[0, 0]) ** 2 + (obj.edges[-1, 1] - obj.edges[0, 1]) ** 2 ) ** 0.5)
+        p_vectors = np.append(p_vectors, p_vector, axis=0)
+        for i in range(len(obj.edges-1)):
+            p_vector = np.divide([obj.edges[i+1, 0] - obj.edges[i, 0], obj.edges[i+1, 1] - obj.edges[i, 1]], ((obj.edges[i+1, 0] - obj.edges[i, 0]) ** 2 + (obj.edges[i+1, 1] - obj.edges[i, 1]) ** 2 ) ** 0.5)
+            p_vectors = np.append(p_vectors, p_vector, axis=0)
+    p_vectors = np.unique(p_vectors, axis=0)
