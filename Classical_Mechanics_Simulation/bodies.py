@@ -41,7 +41,7 @@ class particle:
             tot += (points[i, 1] + points[i + 1, 1]) * (
                         points[i, 0] * points[i + 1, 1] - points[i + 1, 0] * points[i, 1])
         cy = tot / (6 * A)
-        self.edges = np.transpose(np.append([points[:, 1] - cy], [points[:, 0] - cx], axis=0))
+        self.edges = np.transpose(np.append([points[:, 1] - cy + self.com[0]], [points[:, 0] - cx + self.com[1]], axis=0))
         pass
 
     def draw_equilateral(self, vertices, radius):
@@ -73,9 +73,24 @@ def check_collision(objects):
     # create all projection vectors
     p_vectors = np.empty((0, 2))
     for obj in objects:
+        # find the vector of each edge and divide by its length to get its unit vector
         p_vector = np.divide([obj.edges[-1, 0] - obj.edges[0, 0], obj.edges[-1, 1] - obj.edges[0, 1]], ((obj.edges[-1, 0] - obj.edges[0, 0]) ** 2 + (obj.edges[-1, 1] - obj.edges[0, 1]) ** 2 ) ** 0.5)
         p_vectors = np.append(p_vectors, p_vector, axis=0)
         for i in range(len(obj.edges-1)):
             p_vector = np.divide([obj.edges[i+1, 0] - obj.edges[i, 0], obj.edges[i+1, 1] - obj.edges[i, 1]], ((obj.edges[i+1, 0] - obj.edges[i, 0]) ** 2 + (obj.edges[i+1, 1] - obj.edges[i, 1]) ** 2 ) ** 0.5)
             p_vectors = np.append(p_vectors, p_vector, axis=0)
     p_vectors = np.unique(p_vectors, axis=0)
+
+    for project in p_vectors:
+        for obj1 in objects:
+            obj1_proj_points = obj1.edges[:, 0] * project[0] + obj1.edges[:, 1] * project[1]
+            [obj1_min, obj1_max] = [min(obj1_proj_points[:, 0]), max(obj1_proj_points[:, 1])]
+            for obj2 in objects:
+                if obj1 != obj2:
+                    obj2_proj_points = obj2.edges[:, 0] * project[0] + obj2.edges[:, 1] * project[1]
+                    [obj2_min, obj2_max] = [min(obj2_proj_points[:, 0]), max(obj2_proj_points[:, 1])]
+                    if obj1_max >= obj2_min or obj1_min <= obj2_max:
+                        return project
+    return 0
+
+
