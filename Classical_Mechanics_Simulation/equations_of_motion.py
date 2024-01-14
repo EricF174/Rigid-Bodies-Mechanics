@@ -34,4 +34,4 @@ ball.forces = np.append(ball.forces, [[10, 0]], axis=0)
 for i in range(99):
     eom(ball)
     kinematics(ball, 1)
-    print(ball.velocity, ball.com)
+    # print(ball.velocity, ball.com)
