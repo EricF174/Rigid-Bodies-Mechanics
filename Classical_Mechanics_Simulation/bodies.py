@@ -89,8 +89,8 @@ def check_collision(objects):
                 if obj1 != obj2:
                     obj2_proj_points = obj2.edges[:, 0] * project[0] + obj2.edges[:, 1] * project[1]
                     [obj2_min, obj2_max] = [min(obj2_proj_points[:, 0]), max(obj2_proj_points[:, 1])]
-                    if obj1_max >= obj2_min or obj1_min <= obj2_max:
-                        return project
-    return 0
-
+                    if obj1_max <= obj2_min or obj1_min >= obj2_max:
+                        return 0  # no collision
+    return 1 # collision
+                    
 
