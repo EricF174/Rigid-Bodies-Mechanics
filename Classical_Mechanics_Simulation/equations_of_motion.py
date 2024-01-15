@@ -1,17 +1,6 @@
 from bodies import *
 
 
-def eom(obj):
-    """
-    :param obj: particle object
-    :param forces: numpy array
-    :return: acceleration
-    """
-    # sum f = ma
-    obj.acceleration = sum(obj.forces) / obj.mass
-    return
-
-
 def kinematics(obj, time_step):
     """
     :param obj:
@@ -29,8 +18,8 @@ def kinematics(obj, time_step):
 ball = particle()
 ball.velocity = ball.com = ball.acceleration = [0, 0]
 ball.mass = 10
-ball.forces = np.append(ball.forces, [[0, -9.81 * ball.mass]], axis=0)
-ball.forces = np.append(ball.forces, [[10, 0]], axis=0)
+ball.add_force([1, 1])
+print(ball.forces)
 for i in range(99):
     eom(ball)
     kinematics(ball, 1)
