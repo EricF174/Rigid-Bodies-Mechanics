@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/Classical_Mechanics_Simulation.iml" filepath="$PROJECT_DIR$/.idea/Classical_Mechanics_Simulation.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../../../barcodes_lockers/.idea/barcodes_lockers.iml" filepath="$PROJECT_DIR$/../../../barcodes_lockers/.idea/barcodes_lockers.iml" />
     </modules>
   </component>
 </project>
