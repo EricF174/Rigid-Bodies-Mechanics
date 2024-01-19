@@ -170,3 +170,30 @@ def collision_response(collided_objects):
 
     # object momentum along tangential direction is conserved
     # system momentum along normal direction is conserved
+    # using the equation for the coefficient of restitution, e = 1, and system momentum along the normal direction
+    # first we must rotate coordinate system along normal axis
+    theta = math.atan(unit_normal[1] / unit_normal[0])
+    v1_n = obj1.velocity[0]*math.cos(theta) + obj1.velocity[1]*math.sin(theta)
+    v2_n = obj2.velocity[0]*math.cos(theta) + obj2.velocity[1]*math.sin(theta)
+
+    v1_t = -obj1.velocity[0]*math.sin(theta) + obj1.velocity[1]*math.cos(theta)
+    v2_t = -obj2.velocity[0]*math.sin(theta) + obj2.velocity[1]*math.cos(theta)
+
+    # v1_n - v2_n = v2_n_new - v1_n_new
+    # m1*v1_n + m2*v2_n = m1*v1_n_new + m2*v2_n_new
+    # rearrange to get
+    v1_n_new = ((obj1.mass - obj2.mass) * v1_n + 2 * obj2.mass*v2_n) / (obj1.mass + obj2.mass)
+    v2_n_new = ((obj2.mass - obj1.mass) * v2_n + 2 * obj1.mass*v1_n) / (obj1.mass + obj2.mass)
+
+    # now convert back to regular x-y coordinate system
+    v1_x = v1_n_new*math.cos(theta) - v1_t*math.sin(theta)
+    v2_x = v2_n_new*math.cos(theta) - v2_t*math.sin(theta)
+
+    v1_y = v1_n_new*math.cos(theta) + v1_t*math.cos(theta)
+    v2_y = v2_n_new*math.cos(theta) + v2_t*math.cos(theta)
+
+    # reassign new velocities
+    obj1.velocity = np.array([v1_x, v1_y])
+    obj2.velocity = np.array([v2_x, v2_y])
+    return
+
