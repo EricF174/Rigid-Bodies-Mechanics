@@ -1,8 +1,9 @@
 import numpy as np
 import math
 
+TICK = 60  # updates 60 times per second
 
-class particle:
+class body:
     # basic shapes are limited to polygons
     def __init__(self):
         """
@@ -21,25 +22,28 @@ class particle:
         self.acceleration = np.array([])
 
         self.mass = None
-        self.forces = np.empty((0, 2))
+        self.forces = np.array([[0 ,0]])
 
         self.edges = np.array([])
         self.area = None
 
+        self.body_colour = ()
     def add_force(self, force, point=np.array([0, 0])):
         """
         :param point:
         :param force: 1x2 vector representing force (N)
         :return:
         """
-        self.forces = np.append(self.forces, [force, point])
-
+        self.forces = np.append(self.forces, [force], axis=0)
     def draw_custom_shape(self, points):
         """
         Manually enter points and the function will adjust coordinates such that (0,0) is the center of mass
         :param points: n x 2 numpy array
         :return: n x 2 numpy array of adjusted set of points which draws a polygon
         """
+        # clear current points
+        self.edges = np.array([])
+
         # auto adjust so [0,0] is center of mass
         # https://en.wikipedia.org/wiki/Centroid: find area first using shoelace formula
         tot = 0
@@ -63,7 +67,7 @@ class particle:
         # re-adjust edges so points are relative to window
         self.edges = np.transpose(
             np.append([points[:, 1] - cy + self.com[0]], [points[:, 0] - cx + self.com[1]], axis=0))
-        pass
+
 
     def draw_equilateral(self, vertices, radius):
         """
@@ -72,23 +76,33 @@ class particle:
         :param radius: radius
         :return: n x 2 numpy array of points which draws a polygon
         """
+        # clear current points
+        self.edges = np.array([])
+
         # https://stackoverflow.com/questions/3436453/calculate-coordinates-of-a-regular-polygons-vertices
         # initialise points
         points = np.empty((0, 2))
         for i in range(vertices):
             x = radius * math.cos(2 * math.pi * i / vertices)
             y = radius * math.sin(2 * math.pi * i / vertices)
-            points = np.append(points, [[x, y]], axis=0)
+            points = np.append(points, [[x + self.com[0], y + self.com[1]]], axis=0)
         self.edges = points
+
+    def com_update(self, com_displacement):
+        self.com = self.com + com_displacement
+        self.edges = np.transpose(
+            np.append([self.edges[:, 0] + com_displacement[0]], [self.edges[:, 1] + com_displacement[1]], axis=0))
 
     def eom(self):
         """
         This method computates the acceleration and angular acceleration of the bodies using the equations of motion
         """
         # sum f = ma
-        self.acceleration = sum(self.forces[0:2]) / self.mass
-        return
+        self.acceleration = np.array([sum(self.forces[:, 0]), sum(self.forces[:, 1])]) / self.mass
 
+        self.velocity = self.velocity + self.acceleration / TICK
+        self.com_update(self.velocity)
+        return
 
 class rope:
     pass
@@ -113,30 +127,34 @@ def check_collision(objects):
         # find the vector of each edge and divide by its length to get its unit vector
         p_vector = np.divide([obj.edges[-1, 0] - obj.edges[0, 0], obj.edges[-1, 1] - obj.edges[0, 1]], (
                     (obj.edges[-1, 0] - obj.edges[0, 0]) ** 2 + (obj.edges[-1, 1] - obj.edges[0, 1]) ** 2) ** 0.5)
-        p_vectors = np.append(p_vectors, p_vector, axis=0)
-        for i in range(len(obj.edges - 1)):
+        p_vectors = np.append(p_vectors, [p_vector], axis=0)
+        for i in range(len(obj.edges)-1):
             p_vector = np.divide([obj.edges[i + 1, 0] - obj.edges[i, 0], obj.edges[i + 1, 1] - obj.edges[i, 1]], ((obj.edges[i + 1, 0] - obj.edges[i, 0]) ** 2 + (obj.edges[i + 1, 1] - obj.edges[i, 1]) ** 2) ** 0.5)
-            p_vectors = np.append(p_vectors, p_vector, axis=0)
+            p_vectors = np.append(p_vectors, [p_vector], axis=0)  # squaring removes negative -1 into 1
     # remove repeating unit vectors to reduce processing time
     p_vectors = np.unique(p_vectors, axis=0)
 
     # now project every object points into the unit vectors and find min and max of objects
-    for project in p_vectors:
-        for obj1 in objects:
-            # project object 1
-            obj1_proj_points = obj1.edges[:, 0] * project[0] + obj1.edges[:, 1] * project[1]
-            [obj1_min, obj1_max] = [min(obj1_proj_points[:, 0]), max(obj1_proj_points[:, 1])]
-            for obj2 in objects:
-                if obj1 != obj2:
+    for obj1 in objects:
+        for obj2 in objects:
+            if obj1 != obj2:
+                gap_detect = 0
+                for project in p_vectors:
+                    # project object 1
+                    obj1_proj_points = np.array(obj1.edges[:, 0] * project[0] + obj1.edges[:, 1] * project[1])
+                    [obj1_min, obj1_max] = [min(obj1_proj_points), max(obj1_proj_points)]
                     # project object 2
-                    obj2_proj_points = obj2.edges[:, 0] * project[0] + obj2.edges[:, 1] * project[1]
-                    [obj2_min, obj2_max] = [min(obj2_proj_points[:, 0]), max(obj2_proj_points[:, 1])]
+                    obj2_proj_points = np.array(obj2.edges[:, 0] * project[0] + obj2.edges[:, 1] * project[1])
+                    [obj2_min, obj2_max] = [min(obj2_proj_points), max(obj2_proj_points)]
 
-                    if obj1_max <= obj2_min or obj1_min >= obj2_max:
-                        return 0  # no collision
-        return [obj1, obj2]  # collision
+                    if obj2_max < obj1_min or obj1_max < obj2_min:
+                        # no_collision detected
+                        gap_detect += 1
 
-
+                if gap_detect == 0:
+                    return 1 # collision
+                else:
+                    return 0 # no collision
 def collision_response(collided_objects):
     obj1 = collided_objects[0]
     obj2 = collided_objects[1]

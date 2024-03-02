@@ -17,10 +17,8 @@ def kinematics(obj, time_step):
 
 ball = particle()
 ball.velocity = ball.com = ball.acceleration = [0, 0]
+ball.draw_equilateral(3,radius=2)
 ball.mass = 10
 ball.add_force([1, 1])
-print(ball.forces)
-for i in range(99):
-    eom(ball)
-    kinematics(ball, 1)
-    # print(ball.velocity, ball.com)
+print(ball.edges)
+
