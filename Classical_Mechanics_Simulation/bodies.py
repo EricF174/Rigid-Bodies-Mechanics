@@ -135,26 +135,29 @@ def check_collision(objects):
     p_vectors = np.unique(p_vectors, axis=0)
 
     # now project every object points into the unit vectors and find min and max of objects
-    for obj1 in objects:
-        for obj2 in objects:
-            if obj1 != obj2:
-                gap_detect = 0
-                for project in p_vectors:
-                    # project object 1
-                    obj1_proj_points = np.array(obj1.edges[:, 0] * project[0] + obj1.edges[:, 1] * project[1])
-                    [obj1_min, obj1_max] = [min(obj1_proj_points), max(obj1_proj_points)]
-                    # project object 2
-                    obj2_proj_points = np.array(obj2.edges[:, 0] * project[0] + obj2.edges[:, 1] * project[1])
-                    [obj2_min, obj2_max] = [min(obj2_proj_points), max(obj2_proj_points)]
+    for i in range(len(objects)):
+        obj1 = objects[i]
 
-                    if obj2_max < obj1_min or obj1_max < obj2_min:
-                        # no_collision detected
-                        gap_detect += 1
+        for j in range(i + 1, len(objects)):
+            obj2 = objects[j]
 
-                if gap_detect == 0:
-                    return 1 # collision
-                else:
-                    return 0 # no collision
+            gap_detect = 0
+            for project in p_vectors:
+                # project object 1
+                obj1_proj_points = np.array(obj1.edges[:, 0] * project[0] + obj1.edges[:, 1] * project[1])
+                [obj1_min, obj1_max] = [min(obj1_proj_points), max(obj1_proj_points)]
+                # project object 2
+                obj2_proj_points = np.array(obj2.edges[:, 0] * project[0] + obj2.edges[:, 1] * project[1])
+                [obj2_min, obj2_max] = [min(obj2_proj_points), max(obj2_proj_points)]
+
+                if obj2_max < obj1_min or obj1_max < obj2_min:
+                    # no_collision detected
+                    gap_detect += 1
+
+            if gap_detect == 0:
+                return 1  # collision
+
+    return 0  # no collision
 def collision_response(collided_objects):
     obj1 = collided_objects[0]
     obj2 = collided_objects[1]
