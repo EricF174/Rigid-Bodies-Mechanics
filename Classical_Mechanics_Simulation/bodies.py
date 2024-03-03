@@ -14,7 +14,7 @@ class body:
         forces: nx4 array of 1x4 vector arrays representing forces acting on body (N) where first two indices represent
                 magnitude and direction, last two represent point of force exertion
         mass: mass of body (kg)
-        edges: arrays of points that connect with each other, where [0,0] is the center point (m)
+        vertices: arrays of points that connect with each other, where [0,0] is the center point (m)
         area: area of body (m^2)
         """
         self.com = np.array([])
@@ -24,7 +24,7 @@ class body:
         self.mass = None
         self.forces = np.array([[0 ,0]])
 
-        self.edges = np.array([])
+        self.vertices = np.array([])
         self.area = None
 
         self.body_colour = ()
@@ -42,7 +42,7 @@ class body:
         :return: n x 2 numpy array of adjusted set of points which draws a polygon
         """
         # clear current points
-        self.edges = np.array([])
+        self.vertices = np.array([])
 
         # auto adjust so [0,0] is center of mass
         # https://en.wikipedia.org/wiki/Centroid: find area first using shoelace formula
@@ -64,8 +64,8 @@ class body:
             tot += (points[i, 1] + points[i + 1, 1]) * (
                     points[i, 0] * points[i + 1, 1] - points[i + 1, 0] * points[i, 1])
         cy = tot / (6 * A)
-        # re-adjust edges so points are relative to window
-        self.edges = np.transpose(
+        # re-adjust vertices so points are relative to window
+        self.vertices = np.transpose(
             np.append([points[:, 1] - cy + self.com[0]], [points[:, 0] - cx + self.com[1]], axis=0))
 
 
@@ -77,7 +77,7 @@ class body:
         :return: n x 2 numpy array of points which draws a polygon
         """
         # clear current points
-        self.edges = np.array([])
+        self.vertices = np.array([])
 
         # https://stackoverflow.com/questions/3436453/calculate-coordinates-of-a-regular-polygons-vertices
         # initialise points
@@ -86,12 +86,12 @@ class body:
             x = radius * math.cos(2 * math.pi * i / vertices)
             y = radius * math.sin(2 * math.pi * i / vertices)
             points = np.append(points, [[x + self.com[0], y + self.com[1]]], axis=0)
-        self.edges = points
+        self.vertices = points
 
     def com_update(self, com_displacement):
         self.com = self.com + com_displacement
-        self.edges = np.transpose(
-            np.append([self.edges[:, 0] + com_displacement[0]], [self.edges[:, 1] + com_displacement[1]], axis=0))
+        self.vertices = np.transpose(
+            np.append([self.vertices[:, 0] + com_displacement[0]], [self.vertices[:, 1] + com_displacement[1]], axis=0))
 
     def eom(self):
         """
@@ -125,11 +125,11 @@ def check_collision(objects):
     p_vectors = np.empty((0, 2))
     for obj in objects:
         # find the vector of each edge and divide by its length to get its unit vector
-        p_vector = np.divide([obj.edges[-1, 0] - obj.edges[0, 0], obj.edges[-1, 1] - obj.edges[0, 1]], (
-                    (obj.edges[-1, 0] - obj.edges[0, 0]) ** 2 + (obj.edges[-1, 1] - obj.edges[0, 1]) ** 2) ** 0.5)
+        p_vector = np.divide([obj.vertices[-1, 0] - obj.vertices[0, 0], obj.vertices[-1, 1] - obj.vertices[0, 1]], (
+                    (obj.vertices[-1, 0] - obj.vertices[0, 0]) ** 2 + (obj.vertices[-1, 1] - obj.vertices[0, 1]) ** 2) ** 0.5)
         p_vectors = np.append(p_vectors, [p_vector], axis=0)
-        for i in range(len(obj.edges)-1):
-            p_vector = np.divide([obj.edges[i + 1, 0] - obj.edges[i, 0], obj.edges[i + 1, 1] - obj.edges[i, 1]], ((obj.edges[i + 1, 0] - obj.edges[i, 0]) ** 2 + (obj.edges[i + 1, 1] - obj.edges[i, 1]) ** 2) ** 0.5)
+        for i in range(len(obj.vertices)-1):
+            p_vector = np.divide([obj.vertices[i + 1, 0] - obj.vertices[i, 0], obj.vertices[i + 1, 1] - obj.vertices[i, 1]], ((obj.vertices[i + 1, 0] - obj.vertices[i, 0]) ** 2 + (obj.vertices[i + 1, 1] - obj.vertices[i, 1]) ** 2) ** 0.5)
             p_vectors = np.append(p_vectors, [p_vector], axis=0)  # squaring removes negative -1 into 1
     # remove repeating unit vectors to reduce processing time
     p_vectors = np.unique(p_vectors, axis=0)
@@ -144,10 +144,10 @@ def check_collision(objects):
             gap_detect = 0
             for project in p_vectors:
                 # project object 1
-                obj1_proj_points = np.array(obj1.edges[:, 0] * project[0] + obj1.edges[:, 1] * project[1])
+                obj1_proj_points = np.array(obj1.vertices[:, 0] * project[0] + obj1.vertices[:, 1] * project[1])
                 [obj1_min, obj1_max] = [min(obj1_proj_points), max(obj1_proj_points)]
                 # project object 2
-                obj2_proj_points = np.array(obj2.edges[:, 0] * project[0] + obj2.edges[:, 1] * project[1])
+                obj2_proj_points = np.array(obj2.vertices[:, 0] * project[0] + obj2.vertices[:, 1] * project[1])
                 [obj2_min, obj2_max] = [min(obj2_proj_points), max(obj2_proj_points)]
 
                 # gap conditions
@@ -162,53 +162,70 @@ def check_collision(objects):
 
 
 def collision_response(collided_objects):
+    # two possible scenarios: the vertice collide or the edge collide
     obj1 = collided_objects[0]
     obj2 = collided_objects[1]
 
     shortest_distance = math.inf
-    for point1 in obj1.edges:
-        for i in range(len(obj2.edges) - 1):
+    for point1 in obj1.vertices:
+        for i in range(len(obj2.vertices) - 1):
             # using https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
-            # y = mx + k
-            # m = (y1-y0)/(x1-x0)
-            m = (obj2.edges[i + 1, 1] - obj2.edges[i, 1]) / (obj2.edges[i + 1, 0] - obj2.edges[i, 0])
-            k = obj2.edges[i + 1, 1] - m * obj2.edges[i + 1, 0]
-            potential_shortest_distance = (k + m * point1[0] - point1[1]) / (1 + m ** 2) ** 0.5
-            if potential_shortest_distance ** 0.5 <= shortest_distance:
-                shortest_distance = potential_shortest_distance
-                # find line
-                x = (point1[0] + m * point1[1] - m * k) / (m ** 2 + 1)
-                y = m * ((point1[0] + m * point1[1] - m * k) / (m ** 2 + 1)) + k
-                normal = [y - point1[1], x - point1[0]]
-    for point2 in obj2.edges:
-        for i in range(len(obj1.edges) - 1):
-            m = (obj1.edges[i + 1, 1] - obj1.edges[i, 1]) / (obj1.edges[i + 1, 0] - obj1.edges[i, 0])
-            k = obj1.edges[i + 1, 1] - m * obj1.edges[i + 1, 0]
-            potential_shortest_distance = (k + m * point2[0] - point2[1]) / (1 + m ** 2) ** 0.5
+            # and https://math.stackexchange.com/questions/2248617/shortest-distance-between-a-point-and-a-line-segment
+
+            t = -1 * ((obj2.vertices[i, 0] - point1[0]) * (obj2.vertices[i+1, 0] - obj2.vertices[i, 0]) + (obj2.vertices[i, 1] - point1[1]) * (obj2.vertices[i+1, 1] - obj2.vertices[i, 1])) / ((obj2.vertices[i+1, 0] - obj2.vertices[i, 0]) ** 2 + (obj2.vertices[i+1, 1] - obj2.vertices[i, 1]) ** 2)
+
+            if 0 <= t <= 1:
+                # in between the vertices
+                potential_shortest_distance = abs((obj2.vertices[i+1, 0] - obj2.vertices[i, 0]) * (obj2.vertices[i, 1] - point1[1]) - (obj2.vertices[i, 0] - point1[0]) * (obj2.vertices[i+1, 1] - obj2.vertices[i, 1])) / (((obj2.vertices[i+1, 0] - obj2.vertices[i, 0]) ** 2 + (obj2.vertices[i+1, 1] - obj2.vertices[i, 1]) ** 2) ** 0.5)
+            else:
+                # distance between point and vertices
+                distance_to_vertices = [
+                    ((obj2.vertices[i, 0] - point1[0]) ** 2 + (obj2.vertices[i, 1] - point1[1]) ** 2) ** 0.5,
+                    ((obj2.vertices[i + 1, 0] - point1[0]) ** 2 + (obj2.vertices[i + 1, 1] - point1[1]) ** 2) ** 0.5]
+                potential_shortest_distance = min(distance_to_vertices)
+
+            # print(potential_shortest_distance, point1, [obj2.vertices[i + 1, 0], obj2.vertices[i, 0], obj2.vertices[i + 1, 1], obj2.vertices[i, 1]], distance_to_vertices)
+
             if potential_shortest_distance < shortest_distance:
                 shortest_distance = potential_shortest_distance
-                # find line
-                x = (point2[0] + m * point2[1] - m * k) / (m ** 2 + 1)
-                y = m * ((point2[0] + m * point2[1] - m * k) / (m ** 2 + 1)) + k
-                normal = [y - point2[1], x - point2[0]]
-    print(normal)
+                # normal = surface of contact
+                normal = [obj2.vertices[i + 1, 0] - obj2.vertices[i, 0], obj2.vertices[i + 1, 1] - obj2.vertices[i, 1]]
+    for point2 in obj2.vertices:
+        for i in range(len(obj1.vertices) - 1):
+            # distance to vertices
+
+            t = -1 * ((obj1.vertices[i, 0] - point2[0]) * (obj1.vertices[i+1, 0] - obj1.vertices[i, 0]) + (obj1.vertices[i, 1] - point2[1]) * (obj1.vertices[i+1, 1] - obj1.vertices[i, 1])) / ((obj1.vertices[i+1, 0] - obj1.vertices[i, 0]) ** 2 + (obj1.vertices[i+1, 1] - obj1.vertices[i, 1]) ** 2)
+
+            if 0 <= t <= 1:
+                potential_shortest_distance = abs((obj1.vertices[i+1, 0] - obj1.vertices[i, 0]) * (obj1.vertices[i, 1] - point2[1]) - (obj1.vertices[i, 0] - point2[0]) * (obj1.vertices[i+1, 1] - obj1.vertices[i, 1])) / (((obj1.vertices[i+1, 0] - obj1.vertices[i, 0]) ** 2 + (obj1.vertices[i+1, 1] - obj1.vertices[i, 1]) ** 2) ** 0.5)
+            else:
+                # distance between point and vertices
+                distance_to_vertices = [
+                    ((obj1.vertices[i, 0] - point2[0]) ** 2 + (obj1.vertices[i, 1] - point2[1]) ** 2) ** 0.5,
+                    ((obj1.vertices[i + 1, 0] - point2[0]) ** 2 + (obj1.vertices[i + 1, 1] - point2[1]) ** 2) ** 0.5]
+                potential_shortest_distance = min(distance_to_vertices)
+
+            # print(potential_shortest_distance, point2, [obj1.vertices[i + 1, 0], obj1.vertices[i, 0], obj1.vertices[i + 1, 1], obj1.vertices[i, 1]], distance_to_vertices)
+            if potential_shortest_distance < shortest_distance:
+                shortest_distance = potential_shortest_distance
+                normal = [obj1.vertices[i + 1, 0] - obj1.vertices[i, 0], obj1.vertices[i + 1, 1] - obj1.vertices[i, 1]]
+
     unit_normal = np.divide(normal, (normal[0] ** 2 + normal[1] ** 2) ** 0.5)
     # object momentum along tangential direction is conserved
     # system momentum along normal direction is conserved
     # using the equation for the coefficient of restitution, e = 1, and system momentum along the normal direction
     # first we must rotate coordinate system along normal axis
-    theta = math.atan(unit_normal[1] / unit_normal[0])
+    theta = math.atan(unit_normal[0] / unit_normal[1])
     v1_n = obj1.velocity[0]*math.cos(theta) - obj1.velocity[1]*math.sin(theta)
     v2_n = obj2.velocity[0]*math.cos(theta) - obj2.velocity[1]*math.sin(theta)
 
-    v1_t = -obj1.velocity[0]*math.sin(theta) + obj1.velocity[1]*math.cos(theta)
-    v2_t = -obj2.velocity[0]*math.sin(theta) + obj2.velocity[1]*math.cos(theta)
+    v1_t = obj1.velocity[0]*math.sin(theta) - obj1.velocity[1]*math.cos(theta)
+    v2_t = obj2.velocity[0]*math.sin(theta) - obj2.velocity[1]*math.cos(theta)
     # v1_n - v2_n = v2_n_new - v1_n_new
     # m1*v1_n + m2*v2_n = m1*v1_n_new + m2*v2_n_new
     # rearrange to get
     v1_n_new = ((obj1.mass - obj2.mass) * v1_n + 2 * obj2.mass*v2_n) / (obj1.mass + obj2.mass)
     v2_n_new = ((obj2.mass - obj1.mass) * v2_n + 2 * obj1.mass*v1_n) / (obj1.mass + obj2.mass)
-
     # now convert back to regular x-y coordinate system
     v1_x = v1_n_new*math.cos(-1 * theta) - v1_t*math.sin(-1 * theta)
     v2_x = v2_n_new*math.cos(-1 * theta) - v2_t*math.sin(-1 * theta)
@@ -219,5 +236,6 @@ def collision_response(collided_objects):
     # reassign new velocities
     obj1.velocity = np.array([v1_x, v1_y])
     obj2.velocity = np.array([v2_x, v2_y])
+
     return
 
