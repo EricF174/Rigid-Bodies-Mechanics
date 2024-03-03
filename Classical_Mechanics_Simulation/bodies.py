@@ -165,7 +165,6 @@ def collision_response(collided_objects):
     # two possible scenarios: the vertice collide or the edge collide
     obj1 = collided_objects[0]
     obj2 = collided_objects[1]
-
     shortest_distance = math.inf
     for point1 in obj1.vertices:
         for i in range(len(obj2.vertices) - 1):
@@ -205,37 +204,38 @@ def collision_response(collided_objects):
                     ((obj1.vertices[i + 1, 0] - point2[0]) ** 2 + (obj1.vertices[i + 1, 1] - point2[1]) ** 2) ** 0.5]
                 potential_shortest_distance = min(distance_to_vertices)
 
-            # print(potential_shortest_distance, point2, [obj1.vertices[i + 1, 0], obj1.vertices[i, 0], obj1.vertices[i + 1, 1], obj1.vertices[i, 1]], distance_to_vertices)
             if potential_shortest_distance < shortest_distance:
                 shortest_distance = potential_shortest_distance
                 normal = [obj1.vertices[i + 1, 0] - obj1.vertices[i, 0], obj1.vertices[i + 1, 1] - obj1.vertices[i, 1]]
 
     unit_normal = np.divide(normal, (normal[0] ** 2 + normal[1] ** 2) ** 0.5)
+
+    # Linear Momentum
     # object momentum along tangential direction is conserved
     # system momentum along normal direction is conserved
     # using the equation for the coefficient of restitution, e = 1, and system momentum along the normal direction
     # first we must rotate coordinate system along normal axis
-    theta = math.atan(unit_normal[0] / unit_normal[1])
-    v1_n = obj1.velocity[0]*math.cos(theta) - obj1.velocity[1]*math.sin(theta)
-    v2_n = obj2.velocity[0]*math.cos(theta) - obj2.velocity[1]*math.sin(theta)
+    theta = math.atan(unit_normal[1] / unit_normal[0])
+    v1_t = obj1.velocity[0]*math.cos(theta) + obj1.velocity[1]*math.sin(theta)
+    v2_t = obj2.velocity[0]*math.cos(theta) + obj2.velocity[1]*math.sin(theta)
 
-    v1_t = obj1.velocity[0]*math.sin(theta) - obj1.velocity[1]*math.cos(theta)
-    v2_t = obj2.velocity[0]*math.sin(theta) - obj2.velocity[1]*math.cos(theta)
+    v1_n = -1 * obj1.velocity[0]*math.sin(theta) + obj1.velocity[1]*math.cos(theta)
+    v2_n = -1 * obj2.velocity[0]*math.sin(theta) + obj2.velocity[1]*math.cos(theta)
     # v1_n - v2_n = v2_n_new - v1_n_new
     # m1*v1_n + m2*v2_n = m1*v1_n_new + m2*v2_n_new
     # rearrange to get
     v1_n_new = ((obj1.mass - obj2.mass) * v1_n + 2 * obj2.mass*v2_n) / (obj1.mass + obj2.mass)
-    v2_n_new = ((obj2.mass - obj1.mass) * v2_n + 2 * obj1.mass*v1_n) / (obj1.mass + obj2.mass)
+    v2_n_new = v1_n - v2_n + v1_n_new
     # now convert back to regular x-y coordinate system
-    v1_x = v1_n_new*math.cos(-1 * theta) - v1_t*math.sin(-1 * theta)
-    v2_x = v2_n_new*math.cos(-1 * theta) - v2_t*math.sin(-1 * theta)
+    v1_y = v1_n_new*math.cos(theta) - v1_t*math.sin(theta)
+    v2_y = v2_n_new*math.cos(theta) - v2_t*math.sin(theta)
 
-    v1_y = v1_n_new*math.sin(-1 * theta) + v1_t*math.cos(-1 * theta)
-    v2_y = v2_n_new*math.sin(-1 * theta) + v2_t*math.cos(-1 * theta)
+    v1_x = v1_n_new*math.sin(theta) + v1_t*math.cos(theta)
+    v2_x = v2_n_new*math.sin(theta) + v2_t*math.cos(theta)
+    # print(obj1.velocity, obj1.body_colour, obj2.velocity, obj2.body_colour)
 
     # reassign new velocities
     obj1.velocity = np.array([v1_x, v1_y])
     obj2.velocity = np.array([v2_x, v2_y])
-
     return
 
