@@ -4,10 +4,10 @@ from bodies import *
 TICK = 60  # updates 60 times per second
 
 ball1 = body()
-ball1.velocity = [1, 0]
-ball1.com = [100, 200]
-# ball1.draw_equilateral(4, radius=50)
-ball1.draw_custom_shape(np.array([[0, 0], [0, 100], [100, 100], [100, 0]]))
+ball1.velocity = [3, 0]
+ball1.com = [80, 500]
+ball1.draw_equilateral(40, radius=50)
+# ball1.draw_custom_shape(np.array([[0, 0], [0, 100], [100, 100], [100, 0]]))
 ball1.body_colour = (255, 0, 0)
 ball1.mass = 10
 ball1.add_force([0, -9.81 * ball1.mass])
@@ -15,7 +15,7 @@ ball1.add_force([0, -9.81 * ball1.mass])
 ball2 = body()
 ball2.velocity = [0, 0]
 ball2.com = [500, 0]
-# ball2.draw_equilateral(4, radius=50)
+# ball2.draw_equilateral(40, radius=50)
 ball2.draw_custom_shape(np.array([[0, 0], [0, 1000], [100, 1000], [100, 0]]))
 ball2.body_colour = (0, 0, 255)
 ball2.mass = 1e100
@@ -23,10 +23,10 @@ ball2.mass = 1e100
 # ball.add_force([-10, 0])
 
 ball3 = body()
-ball3.velocity = [-1, 0]
-ball3.com = [900, 400]
-# ball3.draw_equilateral(4, radius=50)
-ball3.draw_custom_shape(np.array([[0, 0], [0, 100], [100, 100], [100, 0]]))
+ball3.velocity = [-4, 0]
+ball3.com = [900, 600]
+ball3.draw_equilateral(40, radius=50)
+# ball3.draw_custom_shape(np.array([[0, 0], [0, 100], [100, 100], [100, 0]]))
 ball3.body_colour = (0, 255, 0)
 ball3.mass = 10
 ball3.add_force([0, -9.81*ball3.mass])

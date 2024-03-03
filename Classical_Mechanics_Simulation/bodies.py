@@ -221,18 +221,20 @@ def collision_response(collided_objects):
 
     v1_n = -1 * obj1.velocity[0]*math.sin(theta) + obj1.velocity[1]*math.cos(theta)
     v2_n = -1 * obj2.velocity[0]*math.sin(theta) + obj2.velocity[1]*math.cos(theta)
+    print(theta, [v1_n, v1_t], obj1.velocity)
     # v1_n - v2_n = v2_n_new - v1_n_new
     # m1*v1_n + m2*v2_n = m1*v1_n_new + m2*v2_n_new
     # rearrange to get
     v1_n_new = ((obj1.mass - obj2.mass) * v1_n + 2 * obj2.mass*v2_n) / (obj1.mass + obj2.mass)
     v2_n_new = v1_n - v2_n + v1_n_new
+    print([v1_n_new, v1_t], obj1.velocity)
     # now convert back to regular x-y coordinate system
-    v1_y = v1_n_new*math.cos(theta) - v1_t*math.sin(theta)
-    v2_y = v2_n_new*math.cos(theta) - v2_t*math.sin(theta)
+    v1_x = v1_t*math.cos(theta) - v1_n_new*math.sin(theta)
+    v2_x = v2_t*math.cos(theta) - v2_n_new*math.sin(theta)
 
-    v1_x = v1_n_new*math.sin(theta) + v1_t*math.cos(theta)
-    v2_x = v2_n_new*math.sin(theta) + v2_t*math.cos(theta)
-    # print(obj1.velocity, obj1.body_colour, obj2.velocity, obj2.body_colour)
+    v1_y = v1_t*math.sin(theta) + v1_n_new*math.cos(theta)
+    v2_y = v2_t*math.sin(theta) + v2_n_new*math.cos(theta)
+    print([v1_x, v1_y])
 
     # reassign new velocities
     obj1.velocity = np.array([v1_x, v1_y])
