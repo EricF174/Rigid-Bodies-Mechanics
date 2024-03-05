@@ -1,7 +1,9 @@
 import numpy as np
 import math
 
-TICK = 60  # updates 60 times per second
+TICK = 60  # updates 60 times per second. LIMITATION: lower ticks increases inaccuracy in calculations due to cumulative
+# time-step misrepresenting proper integral calculations
+
 
 class body:
     # basic shapes are limited to polygons
@@ -88,20 +90,29 @@ class body:
             points = np.append(points, [[x + self.com[0], y + self.com[1]]], axis=0)
         self.vertices = points
 
-    def com_update(self, com_displacement):
-        self.com = self.com + com_displacement
-        self.vertices = np.transpose(
-            np.append([self.vertices[:, 0] + com_displacement[0]], [self.vertices[:, 1] + com_displacement[1]], axis=0))
-
     def eom(self):
         """
         This method computates the acceleration and angular acceleration of the bodies using the equations of motion
         """
         # sum f = ma
         self.acceleration = np.array([sum(self.forces[:, 0]), sum(self.forces[:, 1])]) / self.mass
+        # convert to real time
+        acceleration = self.acceleration / TICK
 
-        self.velocity = self.velocity + self.acceleration / TICK
-        self.com_update(self.velocity)
+        # we now find out our velocity in next time step using Improved Euler's Method, which improves accuracy over
+        # regular eulers method
+        velocity = self.velocity + acceleration
+        velocity_ini = velocity
+        acceleration_plus1 = (np.array([sum(self.forces[:, 0]), sum(self.forces[:, 1])]) / self.mass) / TICK
+        velocity_plus1 = self.velocity + acceleration_plus1
+        self.velocity = (velocity_ini + velocity_plus1) / 2
+        self.com = self.com + self.velocity
+        self.vertices = np.transpose(
+            np.append([self.vertices[:, 0] + self.velocity[0]], [self.vertices[:, 1] + self.velocity[1]], axis=0))
+
+
+
+
         return
 
 class rope:
@@ -126,10 +137,13 @@ def check_collision(objects):
     for obj in objects:
         # find the vector of each edge and divide by its length to get its unit vector
         p_vector = np.divide([obj.vertices[-1, 0] - obj.vertices[0, 0], obj.vertices[-1, 1] - obj.vertices[0, 1]], (
-                    (obj.vertices[-1, 0] - obj.vertices[0, 0]) ** 2 + (obj.vertices[-1, 1] - obj.vertices[0, 1]) ** 2) ** 0.5)
+                    (obj.vertices[-1, 0] - obj.vertices[0, 0]) ** 2 + (obj.vertices[-1, 1] -
+                                                                       obj.vertices[0, 1]) ** 2) ** 0.5)
         p_vectors = np.append(p_vectors, [p_vector], axis=0)
         for i in range(len(obj.vertices)-1):
-            p_vector = np.divide([obj.vertices[i + 1, 0] - obj.vertices[i, 0], obj.vertices[i + 1, 1] - obj.vertices[i, 1]], ((obj.vertices[i + 1, 0] - obj.vertices[i, 0]) ** 2 + (obj.vertices[i + 1, 1] - obj.vertices[i, 1]) ** 2) ** 0.5)
+            p_vector = np.divide([obj.vertices[i + 1, 0] - obj.vertices[i, 0], obj.vertices[i + 1, 1] -
+                                  obj.vertices[i, 1]], ((obj.vertices[i + 1, 0] - obj.vertices[i, 0]) ** 2 +
+                                                        (obj.vertices[i + 1, 1] - obj.vertices[i, 1]) ** 2) ** 0.5)
             p_vectors = np.append(p_vectors, [p_vector], axis=0)  # squaring removes negative -1 into 1
     # remove repeating unit vectors to reduce processing time
     p_vectors = np.unique(p_vectors, axis=0)
@@ -163,19 +177,36 @@ def check_collision(objects):
 
 def collision_response(collided_objects):
     # two possible scenarios: the vertice collide or the edge collide
+
+    # Assign the two colliding objects
     obj1 = collided_objects[0]
     obj2 = collided_objects[1]
+
+    # Calculate the point of contact, by calculating the shortest distance of every vertices in objects 1 to every
+    # line segment in object 2 and vice versa
+
+    # initialise the shortest distance to infinity
     shortest_distance = math.inf
+    shortest_point = None
     for point1 in obj1.vertices:
         for i in range(len(obj2.vertices) - 1):
             # using https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
             # and https://math.stackexchange.com/questions/2248617/shortest-distance-between-a-point-and-a-line-segment
 
-            t = -1 * ((obj2.vertices[i, 0] - point1[0]) * (obj2.vertices[i+1, 0] - obj2.vertices[i, 0]) + (obj2.vertices[i, 1] - point1[1]) * (obj2.vertices[i+1, 1] - obj2.vertices[i, 1])) / ((obj2.vertices[i+1, 0] - obj2.vertices[i, 0]) ** 2 + (obj2.vertices[i+1, 1] - obj2.vertices[i, 1]) ** 2)
+            # Calculate whether the shortest distance from the point to line segment is at the ends of the segment or
+            # in between
+            t = (-1 * ((obj2.vertices[i, 0] - point1[0]) * (obj2.vertices[i+1, 0] - obj2.vertices[i, 0]) +
+                      (obj2.vertices[i, 1] - point1[1]) * (obj2.vertices[i+1, 1] - obj2.vertices[i, 1])) /
+                 ((obj2.vertices[i+1, 0] - obj2.vertices[i, 0]) ** 2 + (obj2.vertices[i+1, 1] -
+                                                                        obj2.vertices[i, 1]) ** 2))
 
+            # in between the vertices
             if 0 <= t <= 1:
-                # in between the vertices
-                potential_shortest_distance = abs((obj2.vertices[i+1, 0] - obj2.vertices[i, 0]) * (obj2.vertices[i, 1] - point1[1]) - (obj2.vertices[i, 0] - point1[0]) * (obj2.vertices[i+1, 1] - obj2.vertices[i, 1])) / (((obj2.vertices[i+1, 0] - obj2.vertices[i, 0]) ** 2 + (obj2.vertices[i+1, 1] - obj2.vertices[i, 1]) ** 2) ** 0.5)
+                potential_shortest_distance = (abs((obj2.vertices[i+1, 0] - obj2.vertices[i, 0]) *
+                                                  (obj2.vertices[i, 1] - point1[1]) - (obj2.vertices[i, 0] - point1[0])
+                                                  * (obj2.vertices[i+1, 1] - obj2.vertices[i, 1])) /
+                                               (((obj2.vertices[i+1, 0] - obj2.vertices[i, 0]) ** 2 +
+                                                 (obj2.vertices[i+1, 1] - obj2.vertices[i, 1]) ** 2) ** 0.5))
             else:
                 # distance between point and vertices
                 distance_to_vertices = [
@@ -183,20 +214,28 @@ def collision_response(collided_objects):
                     ((obj2.vertices[i + 1, 0] - point1[0]) ** 2 + (obj2.vertices[i + 1, 1] - point1[1]) ** 2) ** 0.5]
                 potential_shortest_distance = min(distance_to_vertices)
 
-            # print(potential_shortest_distance, point1, [obj2.vertices[i + 1, 0], obj2.vertices[i, 0], obj2.vertices[i + 1, 1], obj2.vertices[i, 1]], distance_to_vertices)
-
             if potential_shortest_distance < shortest_distance:
                 shortest_distance = potential_shortest_distance
-                # normal = surface of contact
+                # normal = surface of contact - now we find the vector of the contact surface
                 normal = [obj2.vertices[i + 1, 0] - obj2.vertices[i, 0], obj2.vertices[i + 1, 1] - obj2.vertices[i, 1]]
+                shortest_point = point1
+
+    # now do the opposite in repeat
     for point2 in obj2.vertices:
         for i in range(len(obj1.vertices) - 1):
             # distance to vertices
 
-            t = -1 * ((obj1.vertices[i, 0] - point2[0]) * (obj1.vertices[i+1, 0] - obj1.vertices[i, 0]) + (obj1.vertices[i, 1] - point2[1]) * (obj1.vertices[i+1, 1] - obj1.vertices[i, 1])) / ((obj1.vertices[i+1, 0] - obj1.vertices[i, 0]) ** 2 + (obj1.vertices[i+1, 1] - obj1.vertices[i, 1]) ** 2)
+            t = (-1 * ((obj1.vertices[i, 0] - point2[0]) * (obj1.vertices[i+1, 0] - obj1.vertices[i, 0]) +
+                      (obj1.vertices[i, 1] - point2[1]) * (obj1.vertices[i+1, 1] - obj1.vertices[i, 1])) /
+                 ((obj1.vertices[i+1, 0] - obj1.vertices[i, 0]) ** 2 + (obj1.vertices[i+1, 1] -
+                                                                        obj1.vertices[i, 1]) ** 2))
 
             if 0 <= t <= 1:
-                potential_shortest_distance = abs((obj1.vertices[i+1, 0] - obj1.vertices[i, 0]) * (obj1.vertices[i, 1] - point2[1]) - (obj1.vertices[i, 0] - point2[0]) * (obj1.vertices[i+1, 1] - obj1.vertices[i, 1])) / (((obj1.vertices[i+1, 0] - obj1.vertices[i, 0]) ** 2 + (obj1.vertices[i+1, 1] - obj1.vertices[i, 1]) ** 2) ** 0.5)
+                potential_shortest_distance = (abs((obj1.vertices[i+1, 0] - obj1.vertices[i, 0]) *
+                                                  (obj1.vertices[i, 1] - point2[1]) - (obj1.vertices[i, 0] - point2[0])
+                                                  * (obj1.vertices[i+1, 1] - obj1.vertices[i, 1])) /
+                                               (((obj1.vertices[i+1, 0] - obj1.vertices[i, 0]) ** 2 +
+                                                 (obj1.vertices[i+1, 1] - obj1.vertices[i, 1]) ** 2) ** 0.5))
             else:
                 # distance between point and vertices
                 distance_to_vertices = [
@@ -207,37 +246,35 @@ def collision_response(collided_objects):
             if potential_shortest_distance < shortest_distance:
                 shortest_distance = potential_shortest_distance
                 normal = [obj1.vertices[i + 1, 0] - obj1.vertices[i, 0], obj1.vertices[i + 1, 1] - obj1.vertices[i, 1]]
+                shortest_point = point2
 
+    # normalise the vector
     unit_normal = np.divide(normal, (normal[0] ** 2 + normal[1] ** 2) ** 0.5)
-
     # Linear Momentum
     # object momentum along tangential direction is conserved
     # system momentum along normal direction is conserved
     # using the equation for the coefficient of restitution, e = 1, and system momentum along the normal direction
     # first we must rotate coordinate system along normal axis
     theta = math.atan(unit_normal[1] / unit_normal[0])
+
+    # apply transformation to normal tangential
     v1_t = obj1.velocity[0]*math.cos(theta) + obj1.velocity[1]*math.sin(theta)
     v2_t = obj2.velocity[0]*math.cos(theta) + obj2.velocity[1]*math.sin(theta)
 
     v1_n = -1 * obj1.velocity[0]*math.sin(theta) + obj1.velocity[1]*math.cos(theta)
     v2_n = -1 * obj2.velocity[0]*math.sin(theta) + obj2.velocity[1]*math.cos(theta)
-    print(theta, [v1_n, v1_t], obj1.velocity)
     # v1_n - v2_n = v2_n_new - v1_n_new
     # m1*v1_n + m2*v2_n = m1*v1_n_new + m2*v2_n_new
     # rearrange to get
     v1_n_new = ((obj1.mass - obj2.mass) * v1_n + 2 * obj2.mass*v2_n) / (obj1.mass + obj2.mass)
     v2_n_new = v1_n - v2_n + v1_n_new
-    print([v1_n_new, v1_t], obj1.velocity)
     # now convert back to regular x-y coordinate system
     v1_x = v1_t*math.cos(theta) - v1_n_new*math.sin(theta)
     v2_x = v2_t*math.cos(theta) - v2_n_new*math.sin(theta)
-
     v1_y = v1_t*math.sin(theta) + v1_n_new*math.cos(theta)
     v2_y = v2_t*math.sin(theta) + v2_n_new*math.cos(theta)
-    print([v1_x, v1_y])
-
     # reassign new velocities
     obj1.velocity = np.array([v1_x, v1_y])
     obj2.velocity = np.array([v2_x, v2_y])
-    return
+    return shortest_point
 
