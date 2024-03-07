@@ -70,6 +70,9 @@ class body:
         self.vertices = np.transpose(
             np.append([points[:, 1] - cy + self.com[0]], [points[:, 0] - cx + self.com[1]], axis=0))
 
+        # loop back to beginning for calculating sake
+        self.vertices = np.append(self.vertices, [self.vertices[0]], axis=0)
+
 
     def draw_equilateral(self, vertices, radius):
         """
@@ -89,6 +92,9 @@ class body:
             y = radius * math.sin(2 * math.pi * i / vertices)
             points = np.append(points, [[x + self.com[0], y + self.com[1]]], axis=0)
         self.vertices = points
+
+        # loop back to beginning for calculating sake
+        self.vertices = np.append(self.vertices, [self.vertices[0]], axis=0)
 
     def eom(self):
         """
@@ -191,7 +197,8 @@ def collision_response(collided_objects, last_tick_collided_objects):
 
     # initialise the shortest distance to infinity
     shortest_distance = math.inf
-    shortest_point = None
+    obj1_shortest_points = np.empty((0, 2))
+    obj2_shortest_points = np.empty((0, 2))
 
     for point1 in obj1.vertices:
         for i in range(len(obj2.vertices) - 1):
@@ -219,11 +226,15 @@ def collision_response(collided_objects, last_tick_collided_objects):
                     ((obj2.vertices[i + 1, 0] - point1[0]) ** 2 + (obj2.vertices[i + 1, 1] - point1[1]) ** 2) ** 0.5]
                 potential_shortest_distance = min(distance_to_vertices)
 
-            if potential_shortest_distance < shortest_distance:
+            if potential_shortest_distance <= shortest_distance:
+                if potential_shortest_distance == shortest_distance:
+                    obj1_shortest_points = np.append(obj1_shortest_points, [point1], axis=0)
+                else:
+                    obj1_shortest_points = np.array([point1])
+
                 shortest_distance = potential_shortest_distance
                 # normal = surface of contact - now we find the vector of the contact surface
                 normal = [obj2.vertices[i + 1, 0] - obj2.vertices[i, 0], obj2.vertices[i + 1, 1] - obj2.vertices[i, 1]]
-                shortest_point = point1
 
     # now do the opposite in repeat
     for point2 in obj2.vertices:
@@ -248,17 +259,14 @@ def collision_response(collided_objects, last_tick_collided_objects):
                     ((obj1.vertices[i + 1, 0] - point2[0]) ** 2 + (obj1.vertices[i + 1, 1] - point2[1]) ** 2) ** 0.5]
                 potential_shortest_distance = min(distance_to_vertices)
 
-            if potential_shortest_distance < shortest_distance:
+            if potential_shortest_distance <= shortest_distance:
+                if potential_shortest_distance == shortest_distance:
+                    obj2_shortest_points = np.append(obj2_shortest_points, [point2], axis=0)
+                else:
+                    obj2_shortest_points = np.array([point2])
+
                 shortest_distance = potential_shortest_distance
                 normal = [obj1.vertices[i + 1, 0] - obj1.vertices[i, 0], obj1.vertices[i + 1, 1] - obj1.vertices[i, 1]]
-                shortest_point = point2
-
-    # normalise the vector
-    unit_normal = np.divide(normal, (normal[0] ** 2 + normal[1] ** 2) ** 0.5)
-
-    # now we check if the point is inside or outside the polygon using ray casting:
-    # source from https://www.youtube.com/watch?v=RSXM9bgqxJM&ab_channel=Insidecode
-
 
 
     # Linear Momentum
@@ -266,8 +274,17 @@ def collision_response(collided_objects, last_tick_collided_objects):
     # system momentum along normal direction is conserved
     # using the equation for the coefficient of restitution, e = 1, and system momentum along the normal direction
     # first we must rotate coordinate system along normal axis
-    theta = math.atan(unit_normal[1] / unit_normal[0])
 
+    shortest_points = [np.unique(obj1_shortest_points, axis=0), np.unique(obj2_shortest_points, axis=0)]
+    for obj_shortest_points in shortest_points:
+        if len(obj_shortest_points) >= 2:
+            print(obj_shortest_points)
+            normal = obj_shortest_points[1] - obj_shortest_points[0]
+
+    # normalise the vector
+    unit_normal = np.divide(normal, (normal[0] ** 2 + normal[1] ** 2) ** 0.5)
+
+    theta = math.atan(unit_normal[1] / unit_normal[0])
     # apply transformation to normal tangential
     v1_t = obj1.velocity[0]*math.cos(theta) + obj1.velocity[1]*math.sin(theta)
     v2_t = obj2.velocity[0]*math.cos(theta) + obj2.velocity[1]*math.sin(theta)
@@ -288,6 +305,5 @@ def collision_response(collided_objects, last_tick_collided_objects):
     # reassign new velocities
     obj1.velocity = np.array([v1_x, v1_y])
     obj2.velocity = np.array([v2_x, v2_y])
-    # print(shortest_point, shortest_distance)
     return
 
