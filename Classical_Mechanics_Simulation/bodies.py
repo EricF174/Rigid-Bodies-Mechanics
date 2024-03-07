@@ -124,6 +124,7 @@ class spring:
 
 
 def check_collision(objects):
+    collided_objects = np.empty((0, 2))
     """
     Using seperating axis theorem https://research.ncl.ac.uk/game/mastersdegree/gametechnologies/previousinformation/physics4collisiondetection/2017%20Tutorial%204%20-%20Collision%20Detection.pdf
     on every axis of all shapes check if they have collisions, collision being if shape A max > shape B min AND shape A
@@ -170,12 +171,15 @@ def check_collision(objects):
                     gap_detect += 1
 
             if gap_detect == 0:
-                return [obj1, obj2]  # collision
+                collided_objects = np.append(collided_objects, np.array([[obj1, obj2]]), axis=0)
+                break
 
-    return 0  # no collision
+    return collided_objects  # no collision
 
 
-def collision_response(collided_objects):
+def collision_response(collided_objects, last_tick_collided_objects):
+    if collided_objects in last_tick_collided_objects:
+        return
     # two possible scenarios: the vertice collide or the edge collide
 
     # Assign the two colliding objects
@@ -188,6 +192,7 @@ def collision_response(collided_objects):
     # initialise the shortest distance to infinity
     shortest_distance = math.inf
     shortest_point = None
+
     for point1 in obj1.vertices:
         for i in range(len(obj2.vertices) - 1):
             # using https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
@@ -250,6 +255,12 @@ def collision_response(collided_objects):
 
     # normalise the vector
     unit_normal = np.divide(normal, (normal[0] ** 2 + normal[1] ** 2) ** 0.5)
+
+    # now we check if the point is inside or outside the polygon using ray casting:
+    # source from https://www.youtube.com/watch?v=RSXM9bgqxJM&ab_channel=Insidecode
+
+
+
     # Linear Momentum
     # object momentum along tangential direction is conserved
     # system momentum along normal direction is conserved
@@ -273,8 +284,10 @@ def collision_response(collided_objects):
     v2_x = v2_t*math.cos(theta) - v2_n_new*math.sin(theta)
     v1_y = v1_t*math.sin(theta) + v1_n_new*math.cos(theta)
     v2_y = v2_t*math.sin(theta) + v2_n_new*math.cos(theta)
+
     # reassign new velocities
     obj1.velocity = np.array([v1_x, v1_y])
     obj2.velocity = np.array([v2_x, v2_y])
-    return shortest_point
+    # print(shortest_point, shortest_distance)
+    return
 
