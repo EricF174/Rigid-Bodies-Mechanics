@@ -5,9 +5,9 @@ TICK = 100  # updates 60 times per second. LIMITATION: lower ticks increases ina
 # time-step misrepresenting proper integral calculations
 ball1 = body()
 ball1.velocity = [3, 0]
-ball1.com = [500, 600]
-# ball1.draw_equilateral(20, radius=80)
-ball1.draw_custom_shape(np.array([[0, 0], [0, 100], [100, 100], [100, 0]]))
+ball1.com = [300, 800]
+ball1.draw_equilateral(4, radius=80)
+# ball1.draw_custom_shape(np.array([[0, 0], [0, 100], [100, 100], [100, 0]]))
 ball1.body_colour = (255, 0, 0)
 ball1.mass = 10
 ball1.add_force([0, -9.81 * ball1.mass])
@@ -23,10 +23,10 @@ ball1.add_force([0, -9.81 * ball1.mass])
 # # ball.add_force([-10, 0])
 
 ball3 = body()
-ball3.velocity = [3, 4]
-ball3.com = [500, 400]
-# ball3.draw_equilateral(20, radius=80)
-ball3.draw_custom_shape(np.array([[0, 0], [0, 100], [100, 100], [100, 0]]))
+ball3.velocity = [-5, 0]
+ball3.com = [500, 600]
+ball3.draw_equilateral(4, radius=80)
+# ball3.draw_custom_shape(np.array([[0, 0], [0, 100], [100, 100], [100, 0]]))
 ball3.body_colour = (0, 255, 0)
 ball3.mass = 10
 ball3.add_force([0, -9.81*ball3.mass])
@@ -67,7 +67,7 @@ display_surface.fill((255, 255, 255))
 clock = pygame.time.Clock()
 
 
-objects = [ball3, wallb, wallr, walll, wallu]
+objects = [ball1, ball3, wallb, wallr, walll, wallu]
 engine_running = True
 ball1.coords = None
 last_tick_collided_objects = 0

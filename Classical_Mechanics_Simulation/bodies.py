@@ -226,6 +226,8 @@ def collision_response(collided_objects, last_tick_collided_objects):
                     ((obj2.vertices[i + 1, 0] - point1[0]) ** 2 + (obj2.vertices[i + 1, 1] - point1[1]) ** 2) ** 0.5]
                 potential_shortest_distance = min(distance_to_vertices)
 
+            potential_shortest_distance = round(potential_shortest_distance, 6)
+
             if potential_shortest_distance <= shortest_distance:
                 if potential_shortest_distance == shortest_distance:
                     obj1_shortest_points = np.append(obj1_shortest_points, [point1], axis=0)
@@ -259,6 +261,8 @@ def collision_response(collided_objects, last_tick_collided_objects):
                     ((obj1.vertices[i + 1, 0] - point2[0]) ** 2 + (obj1.vertices[i + 1, 1] - point2[1]) ** 2) ** 0.5]
                 potential_shortest_distance = min(distance_to_vertices)
 
+            potential_shortest_distance = round(potential_shortest_distance, 6)
+
             if potential_shortest_distance <= shortest_distance:
                 if potential_shortest_distance == shortest_distance:
                     obj2_shortest_points = np.append(obj2_shortest_points, [point2], axis=0)
@@ -278,7 +282,6 @@ def collision_response(collided_objects, last_tick_collided_objects):
     shortest_points = [np.unique(obj1_shortest_points, axis=0), np.unique(obj2_shortest_points, axis=0)]
     for obj_shortest_points in shortest_points:
         if len(obj_shortest_points) >= 2:
-            print(obj_shortest_points)
             normal = obj_shortest_points[1] - obj_shortest_points[0]
 
     # normalise the vector
